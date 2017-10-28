@@ -129,7 +129,55 @@ class MinimaxAgent(MultiAgentSearchAgent):
             Returns the total number of agents in the game
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.getValue(gameState, (0, 1))[1]
+        #util.raiseNotDefined()
+
+    def isLeafNode(self, gameState, depth):
+        return (depth > self.depth) or gameState.isLose() or gameState.isWin()
+
+    def getNext(self, gameState, agentId, depth):
+        agentId += 1
+        if agentId == gameState.getNumAgents():
+            agentId = 0
+            depth += 1
+        return agentId, depth
+
+    def getValue(self, gameState, (agentId, depth)):
+        if self.isLeafNode(gameState, depth):
+            #print (agentId, depth)
+            return self.evaluationFunction(gameState), None
+        if agentId == 0:
+            return self.maxValue(gameState, agentId, depth)
+        elif agentId < gameState.getNumAgents():
+            return self.minValue(gameState, agentId, depth)
+        else:
+            raise Exception("Invalid AgentId")
+
+    def maxValue(self, gameState, agentId, depth):
+        v = -999999
+        act = None
+        legalActions = gameState.getLegalActions(agentId)
+        for action in legalActions:
+            successor = gameState.generateSuccessor(agentId, action)
+            tmpValue = self.getValue(successor, self.getNext(gameState, agentId, depth))[0]
+            if tmpValue > v:
+                v = tmpValue
+                act = action
+        return v, act
+        #util.raiseNotDefined()
+
+    def minValue(self, gameState, agentId, depth):
+        v = 999999
+        act = None
+        legalActions = gameState.getLegalActions(agentId)
+        for action in legalActions:
+            successor = gameState.generateSuccessor(agentId, action)
+            tmpValue = self.getValue(successor, self.getNext(gameState, agentId, depth))[0]
+            if tmpValue < v:
+                v = tmpValue
+                act = action
+        return v, act
+        #util.raiseNotDefined()
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -141,7 +189,61 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
+        return self.getValue(gameState, (0, 1), -999999, 999999)[1]
         util.raiseNotDefined()
+
+    def isLeafNode(self, gameState, depth):
+        return (depth > self.depth) or gameState.isLose() or gameState.isWin()
+
+    def getNext(self, gameState, agentId, depth):
+        agentId += 1
+        if agentId == gameState.getNumAgents():
+            agentId = 0
+            depth += 1
+        return agentId, depth
+
+    def getValue(self, gameState, (agentId, depth), alpha, beta):
+        if self.isLeafNode(gameState, depth):
+            #print (agentId, depth)
+            return self.evaluationFunction(gameState), None
+        if agentId == 0:
+            return self.maxValue(gameState, agentId, depth, alpha, beta)
+        elif agentId < gameState.getNumAgents():
+            return self.minValue(gameState, agentId, depth, alpha, beta)
+        else:
+            raise Exception("Invalid AgentId")
+
+    def maxValue(self, gameState, agentId, depth, alpha, beta):
+        v = -999999
+        act = None
+        legalActions = gameState.getLegalActions(agentId)
+        for action in legalActions:
+            successor = gameState.generateSuccessor(agentId, action)
+            tmpValue = self.getValue(successor, self.getNext(gameState, agentId, depth), alpha, beta)[0]
+            if tmpValue > v:
+                v = tmpValue
+                act = action
+            if v > beta:
+                return v, act
+            alpha = max(alpha, v)
+        return v, act
+        #util.raiseNotDefined()
+
+    def minValue(self, gameState, agentId, depth, alpha, beta):
+        v = 999999
+        act = None
+        legalActions = gameState.getLegalActions(agentId)
+        for action in legalActions:
+            successor = gameState.generateSuccessor(agentId, action)
+            tmpValue = self.getValue(successor, self.getNext(gameState, agentId, depth), alpha, beta)[0]
+            if tmpValue < v:
+                v = tmpValue
+                act = action
+            if v < alpha:
+                return v, act
+            beta = min(beta, v)
+        return v, act
+        #util.raiseNotDefined()
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -156,7 +258,52 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           legal moves.
         """
         "*** YOUR CODE HERE ***"
+        return self.getValue(gameState, (0, 1))[1]
         util.raiseNotDefined()
+
+    def isLeafNode(self, gameState, depth):
+        return (depth > self.depth) or gameState.isLose() or gameState.isWin()
+
+    def getNext(self, gameState, agentId, depth):
+        agentId += 1
+        if agentId == gameState.getNumAgents():
+            agentId = 0
+            depth += 1
+        return agentId, depth
+
+    def getValue(self, gameState, (agentId, depth)):
+        if self.isLeafNode(gameState, depth):
+            #print (agentId, depth)
+            return self.evaluationFunction(gameState), None
+        if agentId == 0:
+            return self.maxValue(gameState, agentId, depth)
+        elif agentId < gameState.getNumAgents():
+            return self.expValue(gameState, agentId, depth)
+        else:
+            raise Exception("Invalid AgentId")
+
+    def maxValue(self, gameState, agentId, depth):
+        v = -999999
+        act = None
+        legalActions = gameState.getLegalActions(agentId)
+        for action in legalActions:
+            successor = gameState.generateSuccessor(agentId, action)
+            tmpValue = self.getValue(successor, self.getNext(gameState, agentId, depth))[0]
+            if tmpValue > v:
+                v = tmpValue
+                act = action
+        return v, act
+        #util.raiseNotDefined()
+
+    def expValue(self, gameState, agentId, depth):
+        v = 0
+        legalActions = gameState.getLegalActions(agentId)
+        for action in legalActions:
+            successor = gameState.generateSuccessor(agentId, action)
+            tmpValue = self.getValue(successor, self.getNext(gameState, agentId, depth))[0]
+            v += tmpValue * (1.0/len(legalActions))
+        return v, None
+        #util.raiseNotDefined()
 
 def betterEvaluationFunction(currentGameState):
     """
