@@ -74,7 +74,25 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+
+        score = successorGameState.getScore()
+
+        # Closest Food Distance
+        dist2Food = 999999
+        for food in newFood.asList():
+            tmpDist = manhattanDistance(newPos, food)
+            if tmpDist < dist2Food:
+                dist2Food = tmpDist
+        if newFood.count > 0:
+            score += 1.0 / dist2Food
+
+        # Ghost Position
+        ghostPos = newGhostStates[0].getPosition()
+        dist2Ghost = manhattanDistance(newPos, ghostPos)
+        if dist2Ghost > 0:
+            score -= 2.0 / dist2Ghost
+
+        return score
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -313,6 +331,33 @@ def betterEvaluationFunction(currentGameState):
       DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
+    newPos = currentGameState.getPacmanPosition()
+    newFood = currentGameState.getFood()
+    newGhostStates = currentGameState.getGhostStates()
+    newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+
+    score = currentGameState.getScore()
+
+    # Closest Food Distance
+    dist2Food = 999999
+    for food in newFood.asList():
+        tmpDist = manhattanDistance(newPos, food)
+        if tmpDist < dist2Food:
+            dist2Food = tmpDist
+    if newFood.count > 0:
+        score += 1.0 / dist2Food
+
+    # Ghost Position
+    for ghost in newGhostStates:
+        dist = manhattanDistance(newPos, ghost.getPosition())
+        if dist == 0:
+            continue
+        if ghost.scaredTimer > 0:
+            score += 10.0 / dist
+        else:
+            score -= 2.0 / dist
+
+    return score
     util.raiseNotDefined()
 
 # Abbreviation
@@ -321,15 +366,14 @@ better = betterEvaluationFunction
 
 class ContestAgent(MultiAgentSearchAgent):
     """
-      Your expectimax agent (question 6)
+      Your Monte Carlo Tree Search agent (question 6)
     """
 
     def getAction(self, gameState):
         """
-          Returns the expectimax action using self.depth and self.evaluationFunction
+          Returns the Monte Carlo action using self.depth and self.evaluationFunction
 
-          All ghosts should be modeled as choosing uniformly at random from their
-          legal moves.
+          All ghosts should be modeled as chasing Pacman
         """
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
