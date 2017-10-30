@@ -363,11 +363,145 @@ def betterEvaluationFunction(currentGameState):
 # Abbreviation
 better = betterEvaluationFunction
 
+import math
+
+class Node:
+
+    Cp = 10
+
+    def __init__(self, gameState, agentId, remainingSteps, action, parent):
+        self.visits = 0
+        self.reward = 0.0
+
+        self.gameState = gameState
+        self.agentId = agentId
+        self.remainingSteps = remainingSteps
+
+        self.children = []
+        self.action = action
+        self.parent = parent
+
+    def isTerminalState(self):
+        if self.gameState.isWin() or self.gameState.isLose():
+            return True
+        if self.remainingSteps <= 0:
+            return True
+        return False
+
+    def isFullyExpanded(self):
+        legalActions = len(self.gameState.getLegalActions(self.agentId))
+        visitedChild = len(self.children)
+        return legalActions == visitedChild
+
+    def nextAgent(self):
+        return (self.agentId + 1) % self.gameState.getNumAgents()
+
+    def backPropagation(self, reward):
+        currentNode = self
+        while currentNode is not None:
+            currentNode.reward += reward
+            currentNode.visits += 1
+            currentNode = currentNode.parent
+
+    # if this state is not fully expanded, find a child to expand
+    # and returns this child
+    def expand(self):
+        childStates = [child.gameState for child in self.children]
+        legalActions = self.gameState.getLegalActions(self.agentId)
+        unexploredActions = []
+
+        for action in legalActions:
+            successor = self.gameState.generateSuccessor(self.agentId, action)
+            if successor not in childStates:
+                unexploredActions.append(action)
+
+        # chose randomly from unexplored actions
+        action = random.choice(unexploredActions)
+        successor = self.gameState.generateSuccessor(self.agentId, action)
+        node = Node(successor, self.nextAgent(), self.remainingSteps, action, self)
+        self.children.append(node)
+        return node
+
+    # if this node is fully expanded, choose according to UCB algorithm
+    # returns the node selected
+    def UCB(self):
+        prob = util.Counter()
+        for child in self.children:
+            prob[child] = child.reward/child.visits + 2*self.Cp*math.sqrt(2*math.log(self.visits)/child.visits)
+        prob.normalize()
+        return util.chooseFromDistribution(prob)
+
+    def bestAction(self):
+        best = -999999
+        action = None
+        for child in self.children:
+            prob = child.reward/child.visits
+            if prob > best:
+                action = child.action
+                best = prob
+        return action
+
+    # iteratively find the start node to start simulation on
+    # and returns this node
+    # if the current Agent is Pacman, follow standard rules
+    # if the current Agent is a Ghost, use Directional Ghost Probability
+    def selectChild(self):
+        selectedNode = None
+
+        if self.isTerminalState():
+            return self
+
+        # current Agent is Pacman
+        if self.agentId == 0:
+            if self.isFullyExpanded():
+                selectedNode = self.UCB().selectChild()
+            else:
+                selectedNode = self.expand()
+        # current Agent is Ghost
+        else:
+            action = getDirectionalGhostAction(self.gameState, self.agentId)
+            successor = self.gameState.generateSuccessor(self.agentId, action)
+            for child in self.children:
+                if child.gameState == successor:
+                    selectedNode = child
+                    return selectedNode
+
+            node = Node(successor, self.nextAgent(), self.remainingSteps, action, self)
+            self.children.append(node)
+            selectedNode = node.selectChild()
+
+        # print "selected" , selectedNode.gameState
+        return selectedNode
+
+    def simulate(self):
+        node = self
+        for i in xrange(self.remainingSteps):
+            if node.isTerminalState():
+                break
+            if node.agentId == 0:
+                legalActions = node.gameState.getLegalPacmanActions()
+                action = random.choice(legalActions)
+                successor = node.gameState.generateSuccessor(node.agentId, action)
+                newNode = Node(successor, node.nextAgent(), node.remainingSteps-1, action, node)
+                self.children.append(newNode)
+                node = newNode
+            else:
+                action = getDirectionalGhostAction(node.gameState, node.agentId)
+                successor = node.gameState.generateSuccessor(node.agentId, action)
+                newNode = Node(successor, node.nextAgent(), node.remainingSteps-1, action, node)
+                self.children.append(newNode)
+                node = newNode
+        # print "terminalNode", node.gameState
+        node.backPropagation(node.gameState.getScore())
+
+
 
 class ContestAgent(MultiAgentSearchAgent):
     """
       Your Monte Carlo Tree Search agent (question 6)
     """
+
+    iterationSteps = 200
 
     def getAction(self, gameState):
         """
@@ -376,4 +510,57 @@ class ContestAgent(MultiAgentSearchAgent):
           All ghosts should be modeled as chasing Pacman
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        print "Start..!!!", gameState
+        remainingSteps = gameState.getNumAgents() * 15
+        node = Node(gameState, 0, remainingSteps, None, None)
+        for i in xrange(self.iterationSteps):
+            rootNode = node.selectChild()
+            # print "selectedNode", rootNode.gameState
+            rootNode.simulate()
+
+        return node.bestAction()
+
+
+from game import Actions
+def getDirectionalGhostAction( state, agentId ):
+    "A ghost that prefers to rush Pacman, or flee when scared."
+    index = agentId
+    prob_attack = 0.8
+    prob_scaredFlee = 0.8
+
+    # Read variables from state
+    ghostState = state.getGhostState( index )
+    legalActions = state.getLegalActions( index )
+    pos = state.getGhostPosition( index )
+    isScared = ghostState.scaredTimer > 0
+
+    speed = 1
+    if isScared: speed = 0.5
+
+    actionVectors = [Actions.directionToVector( a, speed ) for a in legalActions]
+    newPositions = [( pos[0]+a[0], pos[1]+a[1] ) for a in actionVectors]
+    pacmanPosition = state.getPacmanPosition()
+
+    # Select best actions given the state
+    distancesToPacman = [manhattanDistance( pos, pacmanPosition ) for pos in newPositions]
+    if isScared:
+        bestScore = max( distancesToPacman )
+        bestProb = prob_scaredFlee
+    else:
+        bestScore = min( distancesToPacman )
+        bestProb = prob_attack
+    bestActions = [action for action, distance in zip( legalActions, distancesToPacman ) if distance == bestScore]
+
+    # Construct distribution
+    dist = util.Counter()
+    for a in bestActions: dist[a] = bestProb / len(bestActions)
+    for a in legalActions: dist[a] += ( 1-bestProb ) / len(legalActions)
+    dist.normalize()
+
+    if len(dist) == 0:
+        return Directions.STOP
+    else:
+        return util.chooseFromDistribution(dist)
+
+
+
